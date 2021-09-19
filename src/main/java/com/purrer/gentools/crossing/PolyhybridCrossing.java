@@ -55,9 +55,9 @@ public class PolyhybridCrossing implements Crossing {
      * Build a map of genotypes:
      * <p>
      * AaBb : 4
-     * <br/>
+     * <br>
      * aabb : 2
-     * <br/>
+     * <br>
      * ...
      * </p>
      *
@@ -84,9 +84,9 @@ public class PolyhybridCrossing implements Crossing {
      * @return counting map of all possible genotypes:
      * <p>
      * AaBb : 4
-     * <br/>
+     * <br>
      * aabb : 2
-     * <br/>
+     * <br>
      * ...
      * </p>
      */
