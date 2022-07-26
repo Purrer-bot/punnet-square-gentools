@@ -1,8 +1,16 @@
 package com.purrer.gentools;
 
+import com.purrer.gentools.entities.Gamete;
+import com.purrer.gentools.extractor.SymbolGameteGroupsExtractor;
+import com.purrer.gentools.extractor.TokenizingGameteGroupsExtractor;
+import com.purrer.gentools.interfaces.GameteGroupsExtractor;
+import com.purrer.gentools.interfaces.SequenceTokenizer;
 import com.purrer.gentools.interfaces.SequenceValidation;
 import com.purrer.gentools.validation.SequenceValidationImpl;
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -17,10 +25,20 @@ public class SequenceValidationTest {
     private final String normalSequence2 = "aaBbCCDd";
     private final String normalSequence3 = "aaEeCCDd";
 
+    private final GameteGroupsExtractor symbolExtractor;
+    private final GameteGroupsExtractor tokenizingExtractor;
+    private final SequenceTokenizer tokenizer;
     private final SequenceValidation sequenceValidation;
+    private final SequenceValidation sequenceValidationWithTokenExtractor;
 
     public SequenceValidationTest() {
-        sequenceValidation = new SequenceValidationImpl();
+        tokenizer = new TestTokenizer();
+
+        symbolExtractor = new SymbolGameteGroupsExtractor();
+        tokenizingExtractor = new TokenizingGameteGroupsExtractor(tokenizer);
+
+        sequenceValidation = new SequenceValidationImpl(symbolExtractor);
+        sequenceValidationWithTokenExtractor = new SequenceValidationImpl(tokenizingExtractor);
     }
 
     @Test
@@ -73,6 +91,28 @@ public class SequenceValidationTest {
     @Test
     public void whenBothSequencesTrueWithSameLengthsThenTrue() {
         assertTrue(sequenceValidation.validateSequencePair(normalSequence0, normalSequence2));
+    }
+
+    @Test
+    public void whenTokenizingExtractorThenSplitByUppercase() {
+        Map<String, List<Gamete>> aaBbbCccD = tokenizingExtractor.getGameteGroups("AaBbbCccD");
+
+        List<Gamete> aa = aaBbbCccD.get("aa");
+        assertNotNull(aa);
+        assertEquals("aa", aa.get(0).getGameteKey());
+        assertEquals("Aa", aa.get(0).getGameteValue());
+
+
+        List<Gamete> bbb = aaBbbCccD.get("bbb");
+        assertNotNull(bbb);
+        assertEquals("bbb", bbb.get(0).getGameteKey());
+        assertEquals("Bbb", bbb.get(0).getGameteValue());
+    }
+
+    @Test
+    public void whenTokenizingExtractorAndSplitByUppercaseThenSequenceValid() {
+        boolean aaBbbCccD = sequenceValidationWithTokenExtractor.validateSequence("AaAaBbbBbbCccCccDdDd");
+        assertTrue(aaBbbCccD);
     }
 
 }

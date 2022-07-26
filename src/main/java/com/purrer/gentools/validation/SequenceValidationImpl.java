@@ -1,12 +1,21 @@
 package com.purrer.gentools.validation;
 
+import com.purrer.gentools.entities.Gamete;
+import com.purrer.gentools.interfaces.GameteGroupsExtractor;
 import com.purrer.gentools.interfaces.SequenceValidation;
 
-import java.util.*;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 public class SequenceValidationImpl implements SequenceValidation {
+
+    private final GameteGroupsExtractor extractor;
+
+    public SequenceValidationImpl(GameteGroupsExtractor extractor) {
+        this.extractor = extractor;
+    }
 
     @Override
     public boolean validateSequence(String sequence) {
@@ -60,9 +69,9 @@ public class SequenceValidationImpl implements SequenceValidation {
      * @return true if sequence hasn't repeating gamete pairs, otherwise false
      */
     private boolean validateRepeatingPairs(String sequence) {
-        Map<String, List<Character>> gameteGroups = getGameteGroups(sequence);
+        Map<String, List<Gamete>> gameteGroups = getGameteGroups(sequence);
 
-        for (List<Character> characters : gameteGroups.values()) {
+        for (List<Gamete> characters : gameteGroups.values()) {
             if (characters.size() != 2) {
                 return false;
             }
@@ -71,10 +80,8 @@ public class SequenceValidationImpl implements SequenceValidation {
         return true;
     }
 
-    private Map<String, List<Character>> getGameteGroups(String sequence) {
-        return sequence.chars()
-                .mapToObj(c -> (char) c)
-                .collect(Collectors.groupingBy((c) -> c.toString().toLowerCase()));
+    private Map<String, List<Gamete>> getGameteGroups(String sequence) {
+        return extractor.getGameteGroups(sequence);
     }
 
     private boolean validateCharacters(String sequence) {
