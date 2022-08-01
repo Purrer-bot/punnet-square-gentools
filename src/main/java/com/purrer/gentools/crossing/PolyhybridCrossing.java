@@ -43,7 +43,7 @@ public class PolyhybridCrossing implements Crossing {
      * @param gene sequence in string format (example: AbcABC)
      * @return reordered sequence (example AABbCc)
      */
-    private String reorder(String gene) {
+    protected String reorder(String gene) {
         Character[] chars = new Character[gene.length()];
         for (int i = 0; i < chars.length; i++)
             chars[i] = gene.charAt(i);
