@@ -1,6 +1,7 @@
 package com.purrer.gentools.crossing;
 
 import com.purrer.gentools.interfaces.Crossing;
+import com.purrer.gentools.utils.GameteCombiner;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -9,6 +10,12 @@ import static java.util.Arrays.stream;
 
 public class PolyhybridCrossing implements Crossing {
 
+    private final GameteCombiner combiner;
+
+    public PolyhybridCrossing(GameteCombiner combiner) {
+        this.combiner = combiner;
+    }
+
     /**
      * Create polyhybrid flat Punnet Square
      *
@@ -16,7 +23,7 @@ public class PolyhybridCrossing implements Crossing {
      * @param parent2 list of second parent's gametes
      * @return list of all possible gamete combinations
      */
-    private static List<String> generatePunnetSquare(List<String> parent1, List<String> parent2) {
+    private List<String> generatePunnetSquare(List<String> parent1, List<String> parent2) {
         List<String> p1 = stream(parent1.toArray(new String[0])).sorted().collect(Collectors.toList());
         List<String> p2 = stream(parent2.toArray(new String[0])).sorted().collect(Collectors.toList());
         List<String> square = new ArrayList<>();
@@ -36,7 +43,7 @@ public class PolyhybridCrossing implements Crossing {
      * @param gene sequence in string format (example: AbcABC)
      * @return reordered sequence (example AABbCc)
      */
-    private static String reorder(String gene) {
+    protected String reorder(String gene) {
         Character[] chars = new Character[gene.length()];
         for (int i = 0; i < chars.length; i++)
             chars[i] = gene.charAt(i);
@@ -92,8 +99,8 @@ public class PolyhybridCrossing implements Crossing {
      */
     @Override
     public Map<String, Integer> crossing(String maleSequence, String femaleSequence) {
-        List<String> maleSequenceGametes = com.purrer.gentools.utils.GameteCombiner.getGametes(maleSequence);
-        List<String> femaleSequenceGametes = com.purrer.gentools.utils.GameteCombiner.getGametes(femaleSequence);
+        List<String> maleSequenceGametes = combiner.getGametes(maleSequence);
+        List<String> femaleSequenceGametes = combiner.getGametes(femaleSequence);
         List<String> flatPunnetSquare = generatePunnetSquare(maleSequenceGametes, femaleSequenceGametes);
         return getGenotypeCross(flatPunnetSquare);
     }
