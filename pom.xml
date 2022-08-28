@@ -6,7 +6,7 @@
 
     <groupId>io.github.session-knip</groupId>
     <artifactId>punnett-square-gentools</artifactId>
-    <version>2.0-SNAPSHOT</version>
+    <version>2.1-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>Punnett Square gentool</name>
