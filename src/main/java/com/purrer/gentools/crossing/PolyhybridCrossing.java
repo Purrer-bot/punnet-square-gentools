@@ -21,20 +21,23 @@ public class PolyhybridCrossing implements Crossing {
      *
      * @param parent1 list of first parent's gametes
      * @param parent2 list of second parent's gametes
-     * @return list of all possible gamete combinations
+     * @return map of all possible gamete combinations (Punnett square)
      */
-    private List<String> generatePunnetSquare(List<String> parent1, List<String> parent2) {
+    private Map<String, Integer> generatePunnetSquare(List<String> parent1, List<String> parent2) {
         List<String> p1 = stream(parent1.toArray(new String[0])).sorted().collect(Collectors.toList());
         List<String> p2 = stream(parent2.toArray(new String[0])).sorted().collect(Collectors.toList());
-        List<String> square = new ArrayList<>();
+
+        Map<String, Integer> punnetSquare = new HashMap<>();
 
         for (int i = 0; i < parent1.size(); i++) {
             String oneHalf = p1.get(i);
+            List<String> punnetSquareRow = new ArrayList<>();
             for (int j = 0; j < parent2.size(); j++) {
-                square.add(reorder(oneHalf + p2.get(j)));
+                punnetSquareRow.add(reorder(oneHalf + p2.get(j)));
             }
+            mergeSquareWithGenotypesRow(punnetSquareRow, punnetSquare);
         }
-        return square;
+        return punnetSquare;
     }
 
     /**
@@ -59,7 +62,7 @@ public class PolyhybridCrossing implements Crossing {
     }
 
     /**
-     * Build a map of genotypes:
+     * Merge a map of genotypes:
      * <p>
      * AaBb : 4
      * <br>
@@ -69,18 +72,13 @@ public class PolyhybridCrossing implements Crossing {
      * </p>
      *
      * @param genotypes list of genotypes
-     * @return counting map
+     * @param squareToMerge Punnett square in which list of genotypes will be merged
      */
-    private static Map<String, Integer> getGenotypeCross(List<String> genotypes) {
-        Map<String, Integer> phenotypes = new HashMap<>();
-
+    private static void mergeSquareWithGenotypesRow(List<String> genotypes, Map<String, Integer> squareToMerge) {
         for (String string : genotypes) {
-
-            phenotypes.putIfAbsent(string, 0);
-            phenotypes.computeIfPresent(string, (k, v) -> v += 1);
+            squareToMerge.putIfAbsent(string, 0);
+            squareToMerge.computeIfPresent(string, (k, v) -> v += 1);
         }
-
-        return phenotypes;
     }
 
     /**
@@ -101,8 +99,8 @@ public class PolyhybridCrossing implements Crossing {
     public Map<String, Integer> crossing(String maleSequence, String femaleSequence) {
         List<String> maleSequenceGametes = combiner.getGametes(maleSequence);
         List<String> femaleSequenceGametes = combiner.getGametes(femaleSequence);
-        List<String> flatPunnetSquare = generatePunnetSquare(maleSequenceGametes, femaleSequenceGametes);
-        return getGenotypeCross(flatPunnetSquare);
+
+        return generatePunnetSquare(maleSequenceGametes, femaleSequenceGametes);
     }
 
 }
