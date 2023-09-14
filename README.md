@@ -1,3 +1,13 @@
+**Maven dependency**
+
+```
+<dependency>
+  <groupId>io.github.purrer-bot</groupId>
+  <artifactId>punnett-square-gentools</artifactId>
+  <version>1.0</version>
+</dependency>
+```
+
 Gentools
 -----
 
