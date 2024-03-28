@@ -1,6 +1,8 @@
 package com.purrer.gentools.interfaces;
 
+import com.purrer.gentools.validation.ValidationResult;
+
 public interface SequenceValidation {
-    boolean validateSequence(String sequence);
-    boolean validateSequencePair(String firstSequence, String secondSequence);
+    ValidationResult validateSequence(String sequence);
+    ValidationResult validateSequencePair(String firstSequence, String secondSequence);
 }

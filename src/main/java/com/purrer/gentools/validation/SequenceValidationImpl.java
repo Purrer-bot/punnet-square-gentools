@@ -1,81 +1,169 @@
 package com.purrer.gentools.validation;
 
-import com.purrer.gentools.entities.Gamete;
+import com.purrer.gentools.entities.AllelePair;
+import com.purrer.gentools.entities.GametePair;
 import com.purrer.gentools.interfaces.GameteGroupsExtractor;
 import com.purrer.gentools.interfaces.SequenceValidation;
 
 import java.util.*;
+import java.util.stream.Collectors;
+
+import static com.purrer.gentools.validation.ValidationResult.valid;
 
 public class SequenceValidationImpl implements SequenceValidation {
 
     private final GameteGroupsExtractor extractor;
+    private final Map<String, AllelePair> allelePairMap;
 
-    public SequenceValidationImpl(GameteGroupsExtractor extractor) {
+    public SequenceValidationImpl(GameteGroupsExtractor extractor, Set<AllelePair> allelePairs) {
         this.extractor = extractor;
+        Map<String, AllelePair> map = new HashMap<>();
+
+        allelePairs.forEach(pair -> {
+            map.put(pair.getDominant(), pair);
+            map.put(pair.getRecessive(), pair);
+        });
+
+        allelePairMap = map;
     }
 
     @Override
-    public boolean validateSequence(String sequence) {
-        Objects.requireNonNull(sequence);
+    public ValidationResult validateSequence(String sequence) {
+        try {
+            Objects.requireNonNull(sequence, "Sequence should not be null");
 
-        if (!validateCharacters(sequence)) {
-            return false;
-        }
-
-        Map<String, List<Gamete>> gameteGroups = getGameteGroups(sequence);
-        if (!validateRepeatingPairs(sequence, gameteGroups)) {
-            return false;
-        }
-
-        Collection<List<Gamete>> values = gameteGroups.values();
-        for (List<Gamete> value : values) {
-            if (!gametesKeysAreEqual(value.get(0), value.get(1))) {
-                return false;
+            if (!validateCharacters(sequence)) {
+                return invalid(sequence, "Sequence should only contain characters");
             }
-        }
 
-        return true;
+            List<GametePair> gameteGroups = getGameteGroups(sequence);
+            if (!validateRepeatingPairs(gameteGroups)) {
+                return invalid(sequence, "Sequence should not contain repeating gamete pairs");
+            }
+
+            // validate if each gamete pair has only tokens from existing allele pairs
+            for (GametePair group : gameteGroups) {
+                String firstGamete = group.getFirstGamete();
+                String secondGamete = group.getSecondGamete();
+
+                AllelePair allelePair = allelePairMap.get(firstGamete);
+
+                if (allelePair == null || !isFirstOrSecond(allelePair, secondGamete)) {
+                    return invalid(
+                            sequence,
+                            String.format(
+                                    "Unexpected gamete %s in sequence near '..%s%s'",
+                                    secondGamete,
+                                    firstGamete,
+                                    secondGamete
+                            )
+                    );
+                }
+            }
+
+            return valid();
+        } catch (Throwable e) {
+            return ValidationResult.invalid(
+                    String.format("Unexpected error in sequence: %s. %s", sequence, e.getMessage())
+            );
+        }
+    }
+
+    private boolean isFirstOrSecond(AllelePair pair, String gamete) {
+        return pair.getDominant().equals(gamete) || pair.getRecessive().equals(gamete);
     }
 
     @Override
-    public boolean validateSequencePair(String firstSequence, String secondSequence) {
-        return validateSequence(firstSequence) &&
-                validateSequence(secondSequence) &&
-                validateLengths(firstSequence, secondSequence) &&
-                validateGametePairs(firstSequence, secondSequence);
+    public ValidationResult validateSequencePair(String firstSequence, String secondSequence) {
+        return validateLengths(firstSequence, secondSequence)
+                .and(validateGametePairs(firstSequence, secondSequence));
     }
 
-    private boolean validateLengths(String firstSequence, String secondSequence) {
-        return firstSequence.length() == secondSequence.length();
-    }
-
-    private boolean validateGametePairs(String firstSequence, String secondSequence) {
-        List<String> firstSequenceKeys = new ArrayList<>(getGameteGroups(firstSequence).keySet());
-        List<String> secondSequenceKeys = new ArrayList<>(getGameteGroups(secondSequence).keySet());
-
-        for (int i = 0; i < firstSequenceKeys.size(); i++) {
-            if (!firstSequenceKeys.get(i).equalsIgnoreCase(secondSequenceKeys.get(i))) {
-                return false;
-            }
+    private ValidationResult validateLengths(String firstSequence, String secondSequence) {
+        boolean isValid = firstSequence.length() == secondSequence.length();
+        if (!isValid) {
+            return ValidationResult.invalid(
+                    String.format("Sequences %s and %s have different lengths", firstSequence, secondSequence)
+            );
         }
 
-        return true;
+        return valid();
+    }
+
+    private ValidationResult validateGametePairs(String firstSequence, String secondSequence) {
+        try {
+            List<GametePair> firstSequenceGameteGroups = new ArrayList<>(getGameteGroups(firstSequence));
+            List<GametePair> secondSequenceGameteGroups = new ArrayList<>(getGameteGroups(secondSequence));
+
+            for (int i = 0; i < firstSequenceGameteGroups.size(); i++) {
+                GametePair firstSequencePair = firstSequenceGameteGroups.get(i);
+                GametePair secondSequencePair = secondSequenceGameteGroups.get(i);
+                boolean firstAreFromSameAllele =
+                        areFromSameAllele(firstSequencePair.getFirstGamete(), secondSequencePair.getFirstGamete());
+
+                if (!firstAreFromSameAllele) {
+                    return ValidationResult.invalid(
+                            String.format(
+                                    "Invalid sequences %s and %s. Sequences have gametes from different alleles '%s' and '%s' accordingly",
+                                    firstSequence,
+                                    secondSequence,
+                                    firstSequencePair.getFirstGamete(),
+                                    secondSequencePair.getFirstGamete()
+                            )
+                    );
+                }
+                boolean secondAreFromSameAllele =
+                        areFromSameAllele(firstSequencePair.getSecondGamete(), secondSequencePair.getSecondGamete());
+
+                if (!secondAreFromSameAllele) {
+                    return ValidationResult.invalid(
+                            String.format(
+                                    "Invalid sequences %s and %s. Sequences have gametes from different alleles '%s' and '%s' accordingly",
+                                    firstSequence,
+                                    secondSequence,
+                                    firstSequencePair.getSecondGamete(),
+                                    secondSequencePair.getSecondGamete()
+                            )
+                    );
+                }
+
+            }
+
+            return valid();
+        } catch (Throwable e) {
+            return ValidationResult.invalid(
+                    String.format(
+                            "Unexpected error in sequences: %s and %s. %s",
+                            firstSequence,
+                            secondSequence,
+                            e.getMessage()
+                    )
+            );
+        }
+    }
+
+    private boolean areFromSameAllele(String firstGamete, String secondGamete) {
+        AllelePair alleleForFirstGamete = allelePairMap.get(firstGamete);
+
+        if (alleleForFirstGamete == null) {
+            return false;
+        }
+
+        return alleleForFirstGamete.getDominant().equals(secondGamete) || alleleForFirstGamete.getRecessive().equals(secondGamete);
     }
 
     /**
      * @return true if sequence hasn't repeating gamete pairs, otherwise false
      */
-    private boolean validateRepeatingPairs(String sequence, Map<String, List<Gamete>> gameteGroups) {
-        for (List<Gamete> characters : gameteGroups.values()) {
-            if (characters.size() != 2) {
-                return false;
-            }
-        }
+    private boolean validateRepeatingPairs(List<GametePair> gameteGroups) {
+        Map<GametePair, List<GametePair>> collect = gameteGroups.stream().collect(Collectors.groupingBy(el -> el));
 
-        return true;
+        return collect.values()
+                .stream()
+                .noneMatch(pairList -> pairList.size() > 1);
     }
 
-    private Map<String, List<Gamete>> getGameteGroups(String sequence) {
+    private List<GametePair> getGameteGroups(String sequence) {
         return extractor.getGameteGroups(sequence);
     }
 
@@ -91,8 +179,14 @@ public class SequenceValidationImpl implements SequenceValidation {
         return true;
     }
 
-    private boolean gametesKeysAreEqual(Gamete firstGamete, Gamete secondGamete) {
-        return firstGamete.getGameteKey().equalsIgnoreCase(secondGamete.getGameteKey());
+    private ValidationResult invalid(String sequence, String message) {
+        return ValidationResult.invalid(
+                String.format(
+                        "Invalid sequence: %s. %s",
+                        sequence,
+                        message
+                )
+        );
     }
 
 }

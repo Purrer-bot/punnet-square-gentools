@@ -1,13 +1,23 @@
 package com.purrer.gentools.interfaces;
 
-import com.purrer.gentools.entities.Gamete;
+import com.purrer.gentools.entities.GametePair;
 
 import java.util.List;
-import java.util.Map;
 
 /**
- * Extracts gamete groups from the input sequence
+ * Extractor of gamete groups from the sequences
  */
 public interface GameteGroupsExtractor {
-    Map<String, List<Gamete>> getGameteGroups(String sequence);
+
+    /**
+     * Extracts the gamete groups from the provided sequence. For example:
+     *  <pre>
+     *  sequence = "AaBBCc"
+     *  output  ->  [{A, a}, {B, B}, {C, c}]
+     *  </pre>
+     * @param sequence sequence to extract gamete groups
+     * @return list of gamete groups of sequence
+     */
+    List<GametePair> getGameteGroups(String sequence);
+
 }
