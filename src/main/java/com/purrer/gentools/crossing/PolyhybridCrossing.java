@@ -1,19 +1,36 @@
 package com.purrer.gentools.crossing;
 
+import com.purrer.gentools.entities.AllelePair;
 import com.purrer.gentools.interfaces.Crossing;
+import com.purrer.gentools.interfaces.SequenceTokenizer;
+import com.purrer.gentools.interfaces.SequenceValidation;
+import com.purrer.gentools.interfaces.Token;
 import com.purrer.gentools.utils.GameteCombiner;
+import com.purrer.gentools.validation.ValidationResult;
 
 import java.util.*;
-import java.util.stream.Collectors;
-
-import static java.util.Arrays.stream;
 
 public class PolyhybridCrossing implements Crossing {
 
     private final GameteCombiner combiner;
+    private final SequenceTokenizer tokenizer;
+    private final SequenceValidation validation;
+    private final Map<String, Integer> alleleToIndexMap = new HashMap<>();
 
-    public PolyhybridCrossing(GameteCombiner combiner) {
+    public PolyhybridCrossing(
+            GameteCombiner combiner,
+            SequenceTokenizer tokenizer,
+            SequenceValidation validation,
+            Set<AllelePair> allelePairs
+    ) {
         this.combiner = combiner;
+        this.tokenizer = tokenizer;
+        this.validation = validation;
+        int idx = 0;
+        for (AllelePair allelePair : allelePairs) {
+            alleleToIndexMap.put(allelePair.getDominant(), idx++);
+            alleleToIndexMap.put(allelePair.getRecessive(), idx++);
+        }
     }
 
     /**
@@ -24,16 +41,12 @@ public class PolyhybridCrossing implements Crossing {
      * @return map of all possible gamete combinations (Punnett square)
      */
     private Map<String, Integer> generatePunnetSquare(List<String> parent1, List<String> parent2) {
-        List<String> p1 = stream(parent1.toArray(new String[0])).sorted().collect(Collectors.toList());
-        List<String> p2 = stream(parent2.toArray(new String[0])).sorted().collect(Collectors.toList());
-
         Map<String, Integer> punnetSquare = new HashMap<>();
 
-        for (int i = 0; i < parent1.size(); i++) {
-            String oneHalf = p1.get(i);
+        for (String oneHalf : parent1) {
             List<String> punnetSquareRow = new ArrayList<>();
-            for (int j = 0; j < parent2.size(); j++) {
-                punnetSquareRow.add(reorder(oneHalf + p2.get(j)));
+            for (String string : parent2) {
+                punnetSquareRow.add(reorder(oneHalf + string));
             }
             mergeSquareWithGenotypesRow(punnetSquareRow, punnetSquare);
         }
@@ -41,24 +54,29 @@ public class PolyhybridCrossing implements Crossing {
     }
 
     /**
-     * Helper method to reorder gene sequence after cross
+     * Helper method to reorder sequence after cross
      *
-     * @param gene sequence in string format (example: AbcABC)
+     * @param sequence sequence in string format (example: AbcABC)
      * @return reordered sequence (example AABbCc)
      */
-    protected String reorder(String gene) {
-        Character[] chars = new Character[gene.length()];
-        for (int i = 0; i < chars.length; i++)
-            chars[i] = gene.charAt(i);
+    protected String reorder(String sequence) {
+        List<Token> tokens = tokenizer.tokenize(sequence);
+        sortAccordingToAvailableGenesOrder(tokens);
 
-        Arrays.sort(chars,
-                Comparator
-                        .comparingInt((Character c) -> Character.toLowerCase(c.charValue()))
-                        .thenComparingInt(Character::charValue));
-        StringBuilder sb = new StringBuilder(chars.length);
-        for (char c : chars)
-            sb.append(c);
-        return sb.toString();
+        StringBuilder stringBuilder = new StringBuilder();
+
+        tokens.stream().map(Token::getTokenValue).forEach(stringBuilder::append);
+
+        return stringBuilder.toString();
+    }
+
+    private void sortAccordingToAvailableGenesOrder(List<Token> tokens) {
+        tokens.sort((prev, next) -> {
+            int prevIdx = alleleToIndexMap.get(prev.getTokenValue());
+            int nextIdx = alleleToIndexMap.get(next.getTokenValue());
+
+            return prevIdx - nextIdx;
+        });
     }
 
     /**
@@ -71,7 +89,7 @@ public class PolyhybridCrossing implements Crossing {
      * ...
      * </p>
      *
-     * @param genotypes list of genotypes
+     * @param genotypes     list of genotypes
      * @param squareToMerge Punnett square in which list of genotypes will be merged
      */
     private static void mergeSquareWithGenotypesRow(List<String> genotypes, Map<String, Integer> squareToMerge) {
@@ -97,6 +115,10 @@ public class PolyhybridCrossing implements Crossing {
      */
     @Override
     public Map<String, Integer> crossing(String maleSequence, String femaleSequence) {
+        ValidationResult validationResult = validation.validateSequencePair(maleSequence, femaleSequence);
+        if (!validationResult.isValid()) {
+            throw new IllegalArgumentException("Sequences are invalid: " + validationResult.getMessage());
+        }
         List<String> maleSequenceGametes = combiner.getGametes(maleSequence);
         List<String> femaleSequenceGametes = combiner.getGametes(femaleSequence);
 

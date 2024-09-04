@@ -1,13 +1,13 @@
 package com.purrer.gentools.extractor;
 
-import com.purrer.gentools.entities.Gamete;
+import com.purrer.gentools.entities.GametePair;
 import com.purrer.gentools.interfaces.GameteGroupsExtractor;
 import com.purrer.gentools.interfaces.SequenceTokenizer;
 import com.purrer.gentools.interfaces.Token;
 
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * Extracts gamete groups from the input sequence using {@link SequenceTokenizer}
@@ -21,11 +21,17 @@ public class TokenizingGameteGroupsExtractor implements GameteGroupsExtractor {
     }
 
     @Override
-    public Map<String, List<Gamete>> getGameteGroups(String sequence) {
-        return tokenizer.tokenize(sequence)
-                .stream()
-                .map(Token::getTokenValue)
-                .map(token -> new Gamete(token.toLowerCase(), token))
-                .collect(Collectors.groupingBy(Gamete::getGameteKey));
+    public List<GametePair> getGameteGroups(String sequence) {
+        List<Token> tokens = tokenizer.tokenize(sequence);
+
+        List<GametePair> pairs = new ArrayList<>();
+
+        Iterator<Token> iterator = tokens.iterator();
+        while (iterator.hasNext()) {
+            GametePair pair = new GametePair(iterator.next().getTokenValue(), iterator.next().getTokenValue());
+            pairs.add(pair);
+        }
+
+        return pairs;
     }
 }

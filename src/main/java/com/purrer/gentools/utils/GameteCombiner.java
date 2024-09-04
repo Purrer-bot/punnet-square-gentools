@@ -1,13 +1,13 @@
 package com.purrer.gentools.utils;
 
-import com.purrer.gentools.entities.Gamete;
+import com.purrer.gentools.entities.GametePair;
 import com.purrer.gentools.interfaces.GameteGroupsExtractor;
 import com.purrer.gentools.interfaces.SequenceValidation;
+import com.purrer.gentools.validation.ValidationResult;
 
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Helper class for working with gametes
@@ -30,18 +30,21 @@ public class GameteCombiner {
      * @throws IllegalArgumentException if sequence has invalid pattern (valid: AaBbCc, invalid: Aad)
      */
     public List<String> getGametes(String sequence) {
-        if(!validateSequence(sequence)){
-            throw new IllegalArgumentException("Invalid sequence: " + sequence);
+        ValidationResult validationResult = validateSequence(sequence);
+        if (!validationResult.isValid()) {
+            throw new IllegalArgumentException(
+                    String.format("Invalid sequence: %s. %s", sequence, validationResult.getMessage())
+            );
         }
-        Map<String, List<Gamete>> gameteGroups = extractor.getGameteGroups(sequence);
+        List<GametePair> gameteGroups = extractor.getGameteGroups(sequence);
         int gametesCount = gameteGroups.size();
-        Iterator<List<Gamete>> iterator = gameteGroups.values().iterator();
+        Iterator<GametePair> iterator = gameteGroups.iterator();
         String[][] alleles = new String[gametesCount][2];
 
         for (int i = 0; i < gametesCount; i++) {
-            List<Gamete> gametes = iterator.next();
-            alleles[i][0] = gametes.get(0).getGameteValue();
-            alleles[i][1] = gametes.get(1).getGameteValue();
+            GametePair gametes = iterator.next();
+            alleles[i][0] = gametes.getFirstGamete();
+            alleles[i][1] = gametes.getSecondGamete();
         }
         return Arrays.asList(getCombinations(alleles));
     }
@@ -56,16 +59,18 @@ public class GameteCombiner {
         String[] combos = new String[(int) Math.pow(2, alleles.length)];
         String[] other = getCombinations(Arrays.copyOfRange(alleles, 1, alleles.length));
         for (int i = 0; i < combos.length; i++) {
-            combos[i] =   alleles[0][i * 2 / combos.length] + other[i % other.length];
+            combos[i] = alleles[0][i * 2 / combos.length] + other[i % other.length];
         }
         return combos;
     }
+
     /**
      * Validate string of gene sequence
+     *
      * @param gametes sequence
-     * @return true if sequence is valid
+     * @return validation result
      */
-    private boolean validateSequence(String gametes){
+    private ValidationResult validateSequence(String gametes) {
         return validation.validateSequence(gametes);
     }
 
